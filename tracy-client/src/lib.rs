@@ -72,7 +72,6 @@ impl Span {
         }
         #[cfg(feature="enable")]
         unsafe {
-            sys::___tracy_init_thread();
             let loc = sys::___tracy_alloc_srcloc_name(
                 line,
                 file.as_ptr() as _,
@@ -292,7 +291,6 @@ impl Drop for Frame {
 pub fn message(message: &str, callstack_depth: u16) {
     #[cfg(feature="enable")]
     unsafe {
-        sys::___tracy_init_thread();
         sys::___tracy_emit_message(
             message.as_ptr() as _,
             message.len(),
@@ -310,7 +308,6 @@ pub fn message(message: &str, callstack_depth: u16) {
 pub fn color_message(message: &str, rgba: u32, callstack_depth: u16) {
     #[cfg(feature="enable")]
     unsafe {
-        sys::___tracy_init_thread();
         sys::___tracy_emit_messageC(
             message.as_ptr() as _,
             message.len(),
