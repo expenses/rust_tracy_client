@@ -378,6 +378,112 @@ const fn adjust_stack_depth(depth: u16) -> u16 {
     depth
 }
 
+pub enum GpuContextType {
+    Invalid = 0,
+    OpenGl = 1,
+    Vulkan = 2,
+    OpenCL = 3,
+    Direct3D12 = 4,
+    Direct3D11 = 5
+}
+
+pub fn emit_new_gpu_context(gpu_time: i64, period: f32, context: u8, ty: GpuContextType, name: Option<&str>) {
+    unsafe {
+        sys::___tracy_emit_gpu_new_context(sys::___tracy_gpu_new_context_data {
+            gpuTime: gpu_time,
+            period,
+            context,
+            flags: 0,
+            type_: ty as u8,
+        });
+    }
+
+    if let Some(name) = name {
+        emit_gpu_context_name(context, name);
+    }
+}
+
+pub fn emit_gpu_time(time: i64, context: u8, query_id: u16) {
+    unsafe {
+        sys::___tracy_emit_gpu_time(sys::___tracy_gpu_time_data {
+            gpuTime: time,
+            context,
+            queryId: query_id
+        })
+    }
+}
+
+pub fn emit_gpu_context_name(context: u8, name: &str) {
+    unsafe {
+        sys::___tracy_emit_gpu_context_name(sys::___tracy_gpu_context_name_data {
+            context,
+            name: name.as_ptr() as _,
+            len: name.len() as _
+        });
+    }
+}
+
+pub struct GpuZone {
+    context: u8,
+    end_query_id: u16,
+}
+
+impl GpuZone {
+    pub fn new(name: &str, function: &str, file: &str, line: u32, start_query_id: u16, end_query_id: u16, context: u8) -> Self {
+        unsafe {
+            let source_location = sys::___tracy_alloc_srcloc_name(
+                line,
+                file.as_ptr() as _,
+                file.len(),
+                function.as_ptr() as _,
+                function.len(),
+                name.as_ptr() as _,
+                name.len(),
+            );
+
+            sys::___tracy_emit_gpu_zone_begin_alloc(sys::___tracy_gpu_zone_begin_data {
+                srcloc: source_location,
+                queryId: start_query_id,
+                context,
+            }, 1);
+
+            Self {
+                context,
+                end_query_id
+            }
+        }
+    }
+}
+
+impl Drop for GpuZone {
+    fn drop(&mut self) {
+        unsafe {
+            sys::___tracy_emit_gpu_zone_end(sys::___tracy_gpu_zone_end_data {
+                context: self.context,
+                queryId: self.end_query_id
+            }, 1);
+        }
+    }
+}
+
+#[macro_export]
+macro_rules! gpu_zone {
+    ($name:expr, $start_query_id:expr, $end_query_id:expr, $context:expr) => {{
+        struct S;
+        let func_name = std::any::type_name::<S>();
+        $crate::GpuZone::new(
+            $name,
+            &func_name[..func_name.len() - 3],
+            file!(),
+            line!(),
+            $start_query_id,
+            $end_query_id,
+            $context
+        )
+    }};
+}
+
+
 #[cfg(test)]
 mod tests {
     use super::*;

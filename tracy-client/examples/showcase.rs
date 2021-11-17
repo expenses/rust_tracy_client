@@ -24,80 +24,36 @@ fn main() {
 
         dbg!(gpu_time);
 
-        ___tracy_emit_gpu_new_context(___tracy_gpu_new_context_data {
-            gpuTime: gpu_time,
-            period: 1.0,
-            context: 0,
-            flags: 0,
-            type_: 2,
-        });
-
-        let name = "My Vulkan Context";
-
-        ___tracy_emit_gpu_context_name(___tracy_gpu_context_name_data {
-            context: 0,
-            name: name.as_ptr() as _,
-            len: name.len() as _
-        });
+        emit_new_gpu_context(gpu_time, 1.0, 0, GpuContextType::Vulkan, None);
 
         std::thread::sleep(std::time::Duration::from_secs(1));
 
-        let file = "file.rs";
-        let function = "fn test";
-        let name = "gpu test";
-        let line = 10;
-
-        let mut query_id = 0;
+        let mut query_pool = [0_i64; 9];
+        let mut head = 0;
+        let mut tail = 0;
 
         for _ in 0 .. 1000 {
-            let begin_query_id = query_id;
+            {
+                let start_query_id = tail;
+                tail = (tail + 1) % query_pool.len();
+                let end_query_id = tail;
+                tail = (tail + 1) % query_pool.len();
+                let _gpu_zone = gpu_zone!("testtt", start_query_id as u16, end_query_id as u16, 0);
 
-            query_id += 1;
+                query_pool[start_query_id] = (std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_nanos() % i64::max_value() as u128) as i64;
 
-            let end_query_id = query_id;
+                std::thread::sleep(std::time::Duration::from_millis(1));
 
-            query_id += 1;
-
-            let loc = ___tracy_alloc_srcloc_name(
-                line,
-                file.as_ptr() as _,
-                file.len(),
-                function.as_ptr() as _,
-                function.len(),
-                name.as_ptr() as _,
-                name.len(),
-            );
-
-            ___tracy_emit_gpu_zone_begin_alloc(___tracy_gpu_zone_begin_data {
-                srcloc: loc,
-                queryId: begin_query_id,
-                context: 0,
-            }, 1);
-
-            let start_gpu_time = (std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_nanos() % i64::max_value() as u128) as i64;
-
-            std::thread::sleep(std::time::Duration::from_millis(1));
-
-            let end_gpu_time = (std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_nanos() % i64::max_value() as u128) as i64;
-
-            ___tracy_emit_gpu_zone_end(___tracy_gpu_zone_end_data {
-                context: 0,
-                queryId: end_query_id
-            }, 1);
+                query_pool[end_query_id] = (std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_nanos() % i64::max_value() as u128) as i64;
+            }
 
             std::thread::sleep(std::time::Duration::from_millis(4));
 
-            ___tracy_emit_gpu_time(___tracy_gpu_time_data {
-                gpuTime: start_gpu_time,
-                context: 0,
-                queryId: begin_query_id,
-            });
+            while head != tail {
+                emit_gpu_time(query_pool[head], 0, head as u16);
 
-            ___tracy_emit_gpu_time(___tracy_gpu_time_data {
-                gpuTime: end_gpu_time,
-                context: 0,
-                queryId: end_query_id,
-            });
+                head = (head + 1) % query_pool.len();
+            }
 
             std::thread::sleep(std::time::Duration::from_millis(4));
 
