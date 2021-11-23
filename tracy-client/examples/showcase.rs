@@ -28,32 +28,80 @@ fn main() {
 
         std::thread::sleep(std::time::Duration::from_secs(1));
 
-        let mut query_pool = [0_i64; 9];
-        let mut head = 0;
-        let mut tail = 0;
+        struct TimestampBuffer<const N: usize> {
+            timestamps: [i64; N],
+            len: usize,
+        }
 
-        for _ in 0 .. 1000 {
+        impl<const N: usize> Default for TimestampBuffer<N> {
+            fn default() -> Self {
+                Self {
+                    timestamps: [0; N],
+                    len: 0,
+                }
+            }
+        }
+
+        impl<const N: usize> TimestampBuffer<N> {
+            fn emit(&mut self) {
+                for i in 0 .. self.len {
+                    emit_gpu_time(self.timestamps[i], 0, i as u16);
+                }
+
+                self.len = 0;
+            }
+
+            fn next_id(&mut self) -> usize {
+                let next_id = self.len;
+                self.len += 1;
+                next_id
+            }
+        }
+
+        let mut timestamps = TimestampBuffer::<63>::default();
+
+        loop {
             {
-                let start_query_id = tail;
-                tail = (tail + 1) % query_pool.len();
-                let end_query_id = tail;
-                tail = (tail + 1) % query_pool.len();
+                let start_query_id = timestamps.next_id();
+                let end_query_id = timestamps.next_id();
                 let _gpu_zone = gpu_zone!("testtt", start_query_id as u16, end_query_id as u16, 0);
 
-                query_pool[start_query_id] = (std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_nanos() % i64::max_value() as u128) as i64;
+                timestamps.timestamps[start_query_id] = (std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_nanos() % i64::max_value() as u128) as i64;
 
                 std::thread::sleep(std::time::Duration::from_millis(1));
 
-                query_pool[end_query_id] = (std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_nanos() % i64::max_value() as u128) as i64;
+                timestamps.timestamps[end_query_id] = (std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_nanos() % i64::max_value() as u128) as i64;
+            }
+
+            {
+                let start_query_id = timestamps.next_id();
+                let end_query_id = timestamps.next_id();
+                let _gpu_zone = gpu_zone!("t2", start_query_id as u16, end_query_id as u16, 0);
+
+                timestamps.timestamps[start_query_id] = (std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_nanos() % i64::max_value() as u128) as i64;
+
+                std::thread::sleep(std::time::Duration::from_millis(1));
+
+                {
+                    let start_query_id = timestamps.next_id();
+                    let end_query_id = timestamps.next_id();
+                    let _gpu_zone = gpu_zone!("scoped", start_query_id as u16, end_query_id as u16, 0);
+
+                    timestamps.timestamps[start_query_id] = (std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_nanos() % i64::max_value() as u128) as i64;
+
+                    std::thread::sleep(std::time::Duration::from_nanos(500));
+
+                    timestamps.timestamps[end_query_id] = (std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_nanos() % i64::max_value() as u128) as i64;
+                }
+
+                std::thread::sleep(std::time::Duration::from_millis(1));
+
+                timestamps.timestamps[end_query_id] = (std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_nanos() % i64::max_value() as u128) as i64;
             }
 
             std::thread::sleep(std::time::Duration::from_millis(4));
 
-            while head != tail {
-                emit_gpu_time(query_pool[head], 0, head as u16);
-
-                head = (head + 1) % query_pool.len();
-            }
+            timestamps.emit();
 
             std::thread::sleep(std::time::Duration::from_millis(4));
 
