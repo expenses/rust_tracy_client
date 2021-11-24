@@ -389,7 +389,7 @@ pub enum GpuContextType {
 
 pub fn emit_new_gpu_context(gpu_time: i64, period: f32, context: u8, ty: GpuContextType, name: Option<&str>) {
     unsafe {
-        sys::___tracy_emit_gpu_new_context(sys::___tracy_gpu_new_context_data {
+        sys::___tracy_emit_gpu_new_context_serial(sys::___tracy_gpu_new_context_data {
             gpuTime: gpu_time,
             period,
             context,
@@ -405,7 +405,7 @@ pub fn emit_new_gpu_context(gpu_time: i64, period: f32, context: u8, ty: GpuCont
 
 pub fn emit_gpu_time(time: i64, context: u8, query_id: u16) {
     unsafe {
-        sys::___tracy_emit_gpu_time(sys::___tracy_gpu_time_data {
+        sys::___tracy_emit_gpu_time_serial(sys::___tracy_gpu_time_data {
             gpuTime: time,
             context,
             queryId: query_id
@@ -415,7 +415,7 @@ pub fn emit_gpu_time(time: i64, context: u8, query_id: u16) {
 
 pub fn emit_gpu_context_name(context: u8, name: &str) {
     unsafe {
-        sys::___tracy_emit_gpu_context_name(sys::___tracy_gpu_context_name_data {
+        sys::___tracy_emit_gpu_context_name_serial(sys::___tracy_gpu_context_name_data {
             context,
             name: name.as_ptr() as _,
             len: name.len() as _
@@ -441,11 +441,11 @@ impl GpuZone {
                 name.len(),
             );
 
-            sys::___tracy_emit_gpu_zone_begin_alloc(sys::___tracy_gpu_zone_begin_data {
+            sys::___tracy_emit_gpu_zone_begin_alloc_serial(sys::___tracy_gpu_zone_begin_data {
                 srcloc: source_location,
                 queryId: start_query_id,
                 context,
-            }, 1);
+            });
 
             Self {
                 context,
@@ -458,10 +458,10 @@ impl GpuZone {
 impl Drop for GpuZone {
     fn drop(&mut self) {
         unsafe {
-            sys::___tracy_emit_gpu_zone_end(sys::___tracy_gpu_zone_end_data {
+            sys::___tracy_emit_gpu_zone_end_serial(sys::___tracy_gpu_zone_end_data {
                 context: self.context,
                 queryId: self.end_query_id
-            }, 1);
+            });
         }
     }
 }

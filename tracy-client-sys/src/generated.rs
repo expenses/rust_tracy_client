@@ -480,16 +480,10 @@ extern "C" {
     pub fn ___tracy_emit_zone_value(ctx: TracyCZoneCtx, value: u64);
 }
 extern "C" {
-    pub fn ___tracy_emit_gpu_zone_begin_alloc(
-        arg1: ___tracy_gpu_zone_begin_data,
-        active: ::std::os::raw::c_int,
-    );
+    pub fn ___tracy_emit_gpu_zone_begin_alloc(arg1: ___tracy_gpu_zone_begin_data);
 }
 extern "C" {
-    pub fn ___tracy_emit_gpu_zone_end(
-        data: ___tracy_gpu_zone_end_data,
-        active: ::std::os::raw::c_int,
-    );
+    pub fn ___tracy_emit_gpu_zone_end(data: ___tracy_gpu_zone_end_data);
 }
 extern "C" {
     pub fn ___tracy_emit_gpu_time(arg1: ___tracy_gpu_time_data);
@@ -499,6 +493,21 @@ extern "C" {
 }
 extern "C" {
     pub fn ___tracy_emit_gpu_context_name(arg1: ___tracy_gpu_context_name_data);
+}
+extern "C" {
+    pub fn ___tracy_emit_gpu_zone_begin_alloc_serial(arg1: ___tracy_gpu_zone_begin_data);
+}
+extern "C" {
+    pub fn ___tracy_emit_gpu_zone_end_serial(data: ___tracy_gpu_zone_end_data);
+}
+extern "C" {
+    pub fn ___tracy_emit_gpu_time_serial(arg1: ___tracy_gpu_time_data);
+}
+extern "C" {
+    pub fn ___tracy_emit_gpu_new_context_serial(arg1: ___tracy_gpu_new_context_data);
+}
+extern "C" {
+    pub fn ___tracy_emit_gpu_context_name_serial(arg1: ___tracy_gpu_context_name_data);
 }
 extern "C" {
     pub fn ___tracy_emit_memory_alloc(
